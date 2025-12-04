@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>野道語 単語帳</title>
+    <style>
+        :root {
+          --bg: #0f172a;
+          --panel: #111827;
+          --card: #1f2937;
+          --accent: #22c55e;
+          --muted: #94a3b8;
+          --text: #e5e7eb;
+          --border: #334155;
+        }
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          background: linear-gradient(180deg, #0b1221, #0f172a);
+          color: var(--text);
+          font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+        }
+        header {
+          padding: 18px 16px;
+          border-bottom: 1px solid var(--border);
+          background: rgba(17, 24, 39, 0.7);
+          backdrop-filter: blur(6px);
+          position: sticky;
+          top: 0;
+          z-index: 10;
+        }
+        header .title {
+          display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;
+        }
+        header h1 { font-size: 20px; margin: 0; }
+        header .subtitle { color: var(--muted); font-size: 13px; }
+        .controls {
+          display: grid;
+          grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr 0.8fr;
+          gap: 8px;
+        }
+        .controls input, .controls select, .controls button {
+          height: 36px; border-radius: 8px; border: 1px solid var(--border);
+          background: var(--panel); color: var(--text); padding: 8px 10px;
+          font-size: 14px;
+        }
+        .controls button {
+          cursor: pointer; border: 1px solid var(--border);
+        }
+        .controls button.primary { background: var(--accent); color: #0b1221; border: none; font-weight: 600; }
+        .controls button:hover { filter: brightness(1.05); }
+        main { padding: 16px; }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 12px;
+        }
+        .card {
+          background: linear-gradient(180deg, #1f2937, #111827);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 14px;
+          min-height: 120px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+          cursor: pointer;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); border-color: #3b82f6; }
+        .term { font-size: 18px; font-weight: 700; letter-spacing: 0.2px; }
+        .cat { font-size: 12px; color: var(--muted); }
+        .meaning { margin-top: 8px; font-size: 14px; color: #c7d2fe; }
+        .examples { margin-top: 10px; font-size: 13px; color: #cbd5e1; }
+        .hidden { visibility: hidden; height: 0; margin: 0; padding: 0; }
+        .footer {
+          margin-top: 16px; display: flex; gap: 8px; align-items: center; justify-content: space-between;
+        }
+        .badge {
+          display: inline-flex; align-items: center; gap: 6px;
+          border: 1px dashed var(--border); border-radius: 999px; padding: 2px 8px;
+          font-size: 12px; color: var(--muted);
+        }
+        .editor {
+          margin: 20px 16px 40px; padding: 16px; border: 1px solid var(--border); border-radius: 12px;
+          background: rgba(17,24,39,0.5);
+        }
+        .editor h2 { margin: 0 0 10px; font-size: 16px; }
+        .editor textarea {
+          width: 100%; min-height: 160px; border-radius: 10px; border: 1px solid var(--border);
+          background: #0b1221; color: var(--text); padding: 10px; font-size: 12px; line-height: 1.4;
+        }
+        .editor .row { margin-top: 10px; display: flex; gap: 8px; }
+        .editor button { height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 8px 12px; cursor: pointer; }
+        .editor button.primary { background: var(--accent); color: #0b1221; border: none; font-weight: 600; }
+        .empty { text-align: center; color: var(--muted); padding: 24px 0; }
+        @media (max-width: 720px) {
+          .controls { grid-template-columns: 1fr 1fr 1fr; }
+          .controls .hide-mobile { display: none; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div class="title">
+        <h1>野道語 単語帳</h1>
+        <span class="subtitle">検索・カテゴリ・シャッフル・クイズモード</span>
+    </div>
+    <div class="controls">
+        <input id="q" type="search" placeholder="検索（単語・訳・例文）" />
+        <select id="cat">
+            <option value="">全カテゴリ</option>
+            <option>動詞</option>
+            <option>名詞</option>
+            <option>形容詞</option>
+            <option>副詞</option>
+            <option>助詞</option>
+            <option>代名詞</option>
+        </select>
+        <select id="mode" title="表示モード">
+            <option value="term-first">単語 → 訳</option>
+            <option value="meaning-first">訳 → 単語</option>
+        </select>
+        <button id="shuffle" class="hide-mobile">シャッフル</button>
+        <button id="toggleQuiz" class="primary">クイズモード: OFF</button>
+    </div>
+</header>
+
+<main>
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <div id="empty" class="empty" hidden>該当する単語がありません。</div>
+    <div class="footer">
+        <span class="badge">合計 <span id="count">0</span> 語</span>
+        <div style="display:flex; gap:8px;">
+            <button id="exportBtn">JSON書き出し</button>
+            <button id="importBtn">JSON読み込み</button>
+        </div>
+    </div>
+</main>
+
+<section class="editor">
+    <h2>単語データ（JSONを編集して「更新」）</h2>
+    <textarea id="dataArea" spellcheck="false"></textarea>
+    <div class="row">
+        <button id="apply" class="primary">更新</button>
+        <button id="reset">最新データを再取得</button>
+    </div>
+</section>
+
+<script>
+    // GASのウェブアプリURLをここに貼り付け
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwYgHHO25SD0ro_RJFrJJV-G8wpBPVOD2HExsSHUiYa5UDy1mVFbDuAT-b_1dA8cmNS/exec";
+
+    let words = [];
+    let quizMode = false;
+    let displayMode = "term-first";
+
+    const grid = document.getElementById("grid");
+    const q = document.getElementById("q");
+    const cat = document.getElementById("cat");
+    const mode = document.getElementById("mode");
+    const shuffleBtn = document.getElementById("shuffle");
+    const toggleQuizBtn = document.getElementById("toggleQuiz");
+    const countEl = document.getElementById("count");
+    const emptyEl = document.getElementById("empty");
+    const dataArea = document.getElementById("dataArea");
+    const applyBtn = document.getElementById("apply");
+    const resetBtn = document.getElementById("reset");
+    const exportBtn = document.getElementById("exportBtn");
+    const importBtn = document.getElementById("importBtn");
+
+    // イベント
+    q.addEventListener("input", render);
+    cat.addEventListener("change", render);
+    mode.addEventListener("change", (e) => { displayMode = e.target.value; render(); });
+    shuffleBtn.addEventListener("click", () => { words = shuffle(words); render(); });
+    toggleQuizBtn.addEventListener("click", () => {
+      quizMode = !quizMode;
+      toggleQuizBtn.textContent = `クイズモード: ${quizMode ? "ON" : "OFF"}`;
+      render();
+    });
+    applyBtn.addEventListener("click", () => {
+      try {
+        const parsed = JSON.parse(dataArea.value);
+        if (!Array.isArray(parsed)) throw new Error("配列ではありません");
+        words = parsed;
+        render();
+      } catch (e) {
+        alert("JSONの構文エラーです。配列形式で入力してください。\n" + e.message);
+      }
+    });
+    resetBtn.addEventListener("click", async () => {
+      await init(); // GASから再取得
+    });
+    exportBtn.addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(words, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "nodogo_words.json"; a.click();
+      URL.revokeObjectURL(url);
+    });
+    importBtn.addEventListener("click", async () => {
+      const input = document.createElement("input");
+      input.type = "file"; input.accept = ".json,application/json";
+      input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          if (!Array.isArray(parsed)) throw new Error("配列ではありません");
+          words = parsed;
+          dataArea.value = JSON.stringify(words, null, 2);
+          render();
+        } catch (e) {
+          alert("読み込みエラー: " + e.message);
+        }
+      };
+      input.click();
+    });
+
+    // 初期化: 外部JSONを読み込む
+    init();
+
+    async function init() {
+      try {
+        const res = await fetch(GAS_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error("GAS fetch failed: " + res.status);
+        const json = await res.json();
+        words = Array.isArray(json) ? json : [];
+        dataArea.value = JSON.stringify(words, null, 2);
+        render();
+      } catch (err) {
+        console.error(err);
+        dataArea.value = "[]";
+        render();
+      }
+    }
+
+    // 表示
+    function render() {
+      const query = q.value.trim().toLowerCase();
+      const category = cat.value.trim();
+      let list = words.filter(w => {
+        const text = `${w.term} ${w.meaning} ${(w.examples||[]).join(" ")}`.toLowerCase();
+        const okQ = query ? text.includes(query) : true;
+        const okCat = category ? w.cat === category : true;
+        return okQ && okCat;
+      });
+      countEl.textContent = list.length;
+
+      grid.innerHTML = "";
+      emptyEl.hidden = list.length !== 0;
+
+      list.forEach((w) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", "単語カード");
+
+        const top = document.createElement("div");
+        const termEl = document.createElement("div");
+        const catEl = document.createElement("div");
+
+        termEl.className = "term";
+        catEl.className = "cat";
+
+        const frontText = displayMode === "term-first" ? w.term : w.meaning;
+        const backText  = displayMode === "term-first" ? w.meaning : w.term;
+
+        termEl.textContent = frontText;
+        catEl.textContent = w.cat || "";
+
+        const meaningEl = document.createElement("div");
+        meaningEl.className = "meaning";
+        meaningEl.textContent = backText;
+
+        // 発音（意味の下に表示）
+        const pronEl = document.createElement("div");
+        pronEl.className = "cat";
+        pronEl.textContent = w.pron ? `発音: ${w.pron}` : "";
+
+        top.appendChild(termEl);
+        top.appendChild(catEl);
+
+        const examplesEl = document.createElement("div");
+        examplesEl.className = "examples";
+        examplesEl.textContent = (w.examples && w.examples.length)
+          ? "例: " + w.examples[0]
+          : "";
+
+        // クイズモード時は意味・発音・例文を隠す
+        if (quizMode) {
+          meaningEl.classList.add("hidden");
+          pronEl.classList.add("hidden");
+          examplesEl.classList.add("hidden");
+        }
+
+        card.appendChild(top);
+        card.appendChild(meaningEl);
+        card.appendChild(pronEl);       // 意味の直下
+        card.appendChild(examplesEl);
+
+        card.addEventListener("click", () => {
+          meaningEl.classList.toggle("hidden");
+          pronEl.classList.toggle("hidden");
+          examplesEl.classList.toggle("hidden");
+        });
+
+        grid.appendChild(card);
+      });
+    }
+
+    // ユーティリティ
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // 任意: 定期的に最新化（例: 5分毎）
+    // setInterval(() => { init(); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>
