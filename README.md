@@ -1,2 +1,2 @@
 # nodo-language
-すべてAIでできた東南アジア風の独自言語「nodo語」です。
+It is a unique Southeast Asian-style language called "Nodo" created entirely by AI.
